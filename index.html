@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Chat</title>
+    <style>
+        /* --- DESIGN SYSTEM & MODERN RESET --- */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            --primary-hue: 225;
+            --primary-saturation: 85%;
+            --primary-lightness: 60%;
+            --primary-color: hsl(var(--primary-hue), var(--primary-saturation), var(--primary-lightness));
+            --primary-color-hover: hsl(var(--primary-hue), var(--primary-saturation), 50%);
+            --primary-color-focus: hsla(var(--primary-hue), var(--primary-saturation), 50%, 0.2);
+            
+            --background-dark: #121212;
+            --surface-dark-1: #1E1E1E;
+            --surface-dark-2: #2A2A2A;
+            --surface-dark-3: #333333;
+
+            --text-primary: #EAEAEA;
+            --text-secondary: #A0AEC0;
+            --border-color: #3A3A3A;
+            --error-color: #e53e3e;
+            --success-color: #38a169;
+            --online-indicator: #48bb78;
+
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-dark);
+            display: grid;
+            place-items: center;
+            height: 100vh;
+            overflow: hidden;
+            color: var(--text-primary);
+        }
+
+        /* --- VIEW MANAGEMENT --- */
+        .view { display: none; width: 100%; height: 100%; }
+        .view.active { display: flex; justify-content: center; align-items: center; }
+        
+        /* --- AUTHENTICATION WRAPPER --- */
+        .auth-wrapper { display: flex; width: 100%; max-width: 1024px; height: 640px; background-color: var(--surface-dark-1); border-radius: 28px; box-shadow: var(--shadow-xl); overflow: hidden; position: relative; border: 1px solid var(--border-color); }
+        
+        /* --- FORM PANEL STYLING --- */
+        .form-panel { flex: 1; padding: 48px 56px; display: flex; flex-direction: column; justify-content: center; position: relative; z-index: 10; }
+        .form-view { position: absolute; width: calc(100% - 112px); }
+        .form-view:not(.visible) { opacity: 0; pointer-events: none; }
+        .form-header h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; color: #fff; }
+        .form-header p { font-size: 16px; color: var(--text-secondary); margin-bottom: 40px; }
+        .form-group { position: relative; margin-bottom: 24px; }
+        .form-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #a0aec0; pointer-events: none; transition: color 0.2s ease; }
+        .form-input { width: 100%; padding: 16px 16px 16px 52px; border: 1px solid var(--border-color); border-radius: 12px; font-size: 16px; font-weight: 500; color: var(--text-primary); transition: border-color 0.2s ease, box-shadow 0.2s ease; background-color: var(--surface-dark-2); }
+        .form-input::placeholder { color: #a0aec0; }
+        .form-input:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 4px var(--primary-color-focus); }
+        .form-input:focus ~ .form-icon { color: var(--primary-color); }
+        .form-button { width: 100%; padding: 18px; border: none; border-radius: 12px; background-color: var(--primary-color); color: white; font-size: 16px; font-weight: 700; cursor: pointer; transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        .form-button:hover:not(:disabled) { background-color: var(--primary-color-hover); box-shadow: 0 8px 25px hsla(var(--primary-hue), var(--primary-saturation), 50%, 0.3); transform: translateY(-2px); }
+        .form-button:disabled { background-color: hsl(var(--primary-hue), 30%, 40%); cursor: not-allowed; }
+        .toggle-text { text-align: center; margin-top: 32px; color: var(--text-secondary); }
+        .toggle-text a { color: var(--primary-color); font-weight: 600; cursor: pointer; text-decoration: none; }
+        .error-message { color: var(--error-color); text-align: center; font-weight: 500; min-height: 1.5em; margin-bottom: 16px; opacity: 0; transform: translateY(-10px); }
+        
+        /* --- ILLUSTRATION PANEL --- */
+        .illustration-panel { flex: 1; position: relative; overflow: hidden; background: #000; }
+        .illustration-image { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.5; transition: transform 0.5s ease-out, opacity 0.3s; }
+        .auth-wrapper:hover .illustration-image { transform: scale(1.05); opacity: 0.6; }
+        .illustration-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(145deg, hsla(var(--primary-hue), 50%, 50%, 0.1) 0%, rgba(0,0,0,0.7) 100%); }
+        .illustration-content { position: absolute; bottom: 48px; left: 48px; color: white; z-index: 5; }
+        .illustration-content h2 { font-size: 36px; font-weight: 700; line-height: 1.2; margin-bottom: 16px; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .illustration-content p { font-size: 18px; max-width: 350px; opacity: 0.9; text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        
+        /* --- CHAT DASHBOARD --- */
+        .chat-app-wrapper { width: 100%; height: 100%; max-width: 1280px; max-height: 600px; display: flex; background: var(--surface-dark-1); border-radius: 24px; box-shadow: var(--shadow-xl); border: 1px solid var(--border-color); overflow: hidden; }
+        
+        /* --- SIDEBAR PANEL --- */
+        .sidebar-panel { flex: 0 0 80px; background: var(--background-dark); border-right: 1px solid var(--border-color); padding: 24px 0; display: flex; flex-direction: column; align-items: center; justify-content: space-between; }
+        .sidebar-icon { position: relative; cursor: pointer; color: var(--text-secondary); transition: color 0.2s, transform 0.2s; }
+        .sidebar-icon:hover { color: var(--text-primary); transform: scale(1.1); }
+        .sidebar-icon.active { color: var(--primary-color); }
+        .sidebar-icon .badge { position: absolute; top: -4px; right: -8px; background-color: var(--error-color); color: white; font-size: 10px; font-weight: 700; padding: 2px 5px; border-radius: 10px; border: 1px solid var(--background-dark); }
+        
+        /* --- CONVERSATIONS PANEL (Original Structure) --- */
+        .conversations-panel { flex: 0 0 320px; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background-color: var(--surface-dark-1); }
+        .conversations-header { padding: 16px 16px 0; border-bottom: 1px solid var(--border-color); }
+        .conversations-header h2 { font-size: 18px; font-weight: 700; color: #fff; padding: 0 8px 12px; }
+        .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 8px 12px; }
+        .tab-button { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--surface-dark-2); color: var(--text-secondary); cursor: pointer; font-weight: 600; font-size: 13px; }
+        .tab-button.active { color: #fff; border-color: var(--primary-color); box-shadow: 0 0 0 3px var(--primary-color-focus); }
+        .search-form { display: flex; margin-top: 8px; }
+        .search-form input { flex-grow: 1; padding: 10px 10px 10px 40px; border-radius: 8px 0 0 8px; border: 1px solid var(--border-color); background-color: var(--surface-dark-2); font-size: 14px; border-right: none; color: var(--text-primary); }
+        .search-form button { padding: 0 12px; border: 1px solid var(--primary-color); background-color: var(--primary-color); color: white; border-radius: 0 8px 8px 0; cursor: pointer; }
+        .search-bar { position: relative; }
+        .search-bar svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); }
+        .friend-requests { padding: 16px; border-top: 1px solid var(--border-color); }
+        .friend-requests-header { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+        .friend-request-item { display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 8px; }
+        .friend-request-item:hover { background-color: var(--surface-dark-2); }
+        .request-buttons button { font-size: 12px; font-weight: 600; padding: 4px 8px; border-radius: 6px; cursor: pointer; border: none; }
+        .accept-btn { background-color: var(--success-color); color: white; margin-right: 4px; }
+        .decline-btn { background-color: var(--error-color); color: white; }
+        .conversations-list-header { padding: 16px 16px 8px; font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+        .conversations-list { flex: 1; overflow-y: auto; padding: 8px; }
+        .conversation-item { display: grid; grid-template-columns: 48px 1fr auto; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; cursor: pointer; transition: background-color 0.2s ease; }
+        .conversation-item:hover { background-color: var(--surface-dark-2); }
+        .conversation-item.active { background-color: var(--primary-color); }
+        .avatar { position: relative; width: 48px; height: 48px; border-radius: 50%; margin-right: 12px; background-color: var(--surface-dark-3); }
+        .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .status-dot { position: absolute; bottom: 1px; right: 1px; width: 12px; height: 12px; background-color: var(--text-secondary); border: 2px solid var(--surface-dark-1); border-radius: 50%; transition: background-color 0.3s ease; }
+        .status-dot.online { background-color: var(--online-indicator); }
+        .conversation-details { min-width: 0; }
+        .conversation-details .name { font-weight: 600; font-size: 16px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .conversation-item.active .conversation-details .name { color: white; }
+        .message-preview { font-size: 13px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .conversation-item.active .conversation-details .message-preview { color: hsla(0, 0%, 100%, 0.8); }
+        .conversation-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+        .conversation-time { font-size: 11px; color: var(--text-secondary); }
+        .badge { min-width: 20px; height: 20px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background-color: var(--error-color); color: #fff; font-size: 11px; font-weight: 700; }
+        
+        /* --- CHAT PANEL (With the definitive fix) --- */
+        .chat-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--surface-dark-2);
+            overflow: hidden;
+            min-height: 0; /* The critical fix for stubborn flexbox overflow */
+        }
+        .chat-placeholder { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; color: var(--text-secondary); text-align: center; }
+        .chat-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background-color: var(--surface-dark-1); border-bottom: 1px solid var(--border-color); box-shadow: var(--shadow-md); flex-shrink: 0; }
+        .chat-header .left { display: flex; align-items: center; gap: 12px; }
+        .chat-header .actions { display: flex; gap: 8px; }
+        .icon-button { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: var(--surface-dark-2); border: 1px solid var(--border-color); color: var(--text-secondary); cursor: pointer; transition: background-color .2s, color .2s, transform .1s; }
+        .icon-button:active { transform: translateY(1px); }
+        .chat-header .user-info .status-text { color: var(--text-secondary); font-size: 14px; }
+        .chat-header .user-info .status-text.online { color: var(--online-indicator); font-weight: 500; }
+        .message-area { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 2px; }
+        .day-divider { align-self: center; margin: 12px 0; font-size: 12px; color: var(--text-secondary); background: var(--surface-dark-2); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border-color); }
+        .message-row { display: flex; align-items: flex-end; gap: 8px; }
+        .message-row.sent { justify-content: flex-end; }
+        .message-bubble { max-width: 65%; padding: 12px 16px; border-radius: 16px; margin: 2px 0; line-height: 1.55; word-wrap: break-word; position: relative; }
+        .message-bubble.received { background-color: var(--surface-dark-3); border-bottom-left-radius: 6px; }
+        .message-bubble.sent { background-color: var(--primary-color); color: white; border-bottom-right-radius: 6px; }
+        .message-time { font-size: 11px; opacity: .7; margin-top: 4px; }
+        .chat-input-area { padding: 12px 16px; background-color: var(--surface-dark-1); border-top: 1px solid var(--border-color); flex-shrink: 0; }
+        .chat-input-form { display: flex; align-items: center; gap: 8px; background: var(--surface-dark-2); border: 1px solid var(--border-color); border-radius: 16px; padding: 6px; }
+        .chat-input { flex: 1; padding: 10px 12px; border-radius: 12px; border: 0; background-color: transparent; font-size: 15px; resize: none; color: var(--text-primary); outline: none; max-height: 120px; }
+        .send-button { width: 36px; height: 36px; border: 1px solid var(--border-color); background: var(--primary-color); color: #fff; border-radius: 10px; display: grid; place-items: center; cursor: pointer; }
+        .send-button svg { pointer-events: none; }
+        .chat-input-form:focus-within { box-shadow: 0 0 0 4px var(--primary-color-focus); border-color: var(--primary-color); }
+        
+        /* --- UTILITY & ANIMATION CLASSES --- */
+        .icon-button:hover { color: var(--primary-color); background-color: var(--surface-dark-3); }
+        .send-button:hover { background-color: var(--primary-color-hover); }
+        /* Scrollbar styling */
+        .message-area::-webkit-scrollbar, .conversations-list::-webkit-scrollbar { width: 10px; }
+        .message-area::-webkit-scrollbar-thumb, .conversations-list::-webkit-scrollbar-thumb { background: #3b3b3b; border-radius: 8px; border: 2px solid #2a2a2a; }
+        .message-area::-webkit-scrollbar-track, .conversations-list::-webkit-scrollbar-track { background: #1e1e1e; }
+        .spinner { display: none; width: 20px; height: 20px; border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; }
+        .form-button.loading .spinner { display: block; }
+        .form-button.loading .button-text { display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .anime-element { opacity: 0; transform: translateY(20px); }
+        .hidden { display: none !important; }
+
+        /* Responsive tweaks */
+        @media (max-width: 1024px) {
+            .chat-app-wrapper { max-width: 100%; max-height: 100vh; border-radius: 0; }
+        }
+        @media (max-width: 768px) {
+            .sidebar-panel { display: none; }
+            .conversations-panel { flex: 0 0 260px; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="auth-view" class="view active">
+        <div class="auth-wrapper">
+            <div class="form-panel">
+                <div id="login-view" class="form-view visible">
+                    <div class="form-header"><h1 class="anime-element">Welcome Back</h1><p class="anime-element">Connect and collaborate instantly.</p></div>
+                    <div id="login-error" class="error-message"></div>
+                    <form id="login-form">
+                        <div class="form-group anime-element"><span class="form-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span><input type="text" id="login-username" class="form-input" placeholder="Username" required></div>
+                        <div class="form-group anime-element"><span class="form-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span><input type="password" id="login-password" class="form-input" placeholder="Password" required></div>
+                        <div class="anime-element"><button type="submit" class="form-button"><span class="button-text">Sign In</span><div class="spinner"></div></button></div>
+                    </form>
+                    <div class="toggle-text anime-element">Don't have an account? <a id="show-register-link">Sign Up</a></div>
+                </div>
+                <div id="register-view" class="form-view">
+                    <div class="form-header"><h1 class="anime-element">Create Account</h1><p class="anime-element">Start your journey with us today.</p></div>
+                    <div id="register-error" class="error-message"></div>
+                    <form id="register-form">
+                        <div class="form-group anime-element"><span class="form-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span><input type="text" id="register-username" class="form-input" placeholder="Username" required></div>
+                        <div class="form-group anime-element"><span class="form-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span><input type="password" id="register-password" class="form-input" placeholder="Password" required></div>
+                        <div class="anime-element"><button type="submit" class="form-button"><span class="button-text">Create Account</span><div class="spinner"></div></button></div>
+                    </form>
+                    <div class="toggle-text anime-element">Already have an account? <a id="show-login-link">Sign In</a></div>
+                </div>
+            </div>
+            <div class="illustration-panel"><div class="illustration-overlay"></div><img src="https://images.unsplash.com/photo-1522071820081-009f0129c7da?q=80&w=2670&auto=format&fit=crop" alt="Team collaborating" class="illustration-image" onerror="this.onerror=null;this.src='https://placehold.co/600x800/1a202c/ffffff?text=Image';"><div class="illustration-content"><h2 class="anime-element">Where Ideas<br>Find Their Voice.</h2><p class="anime-element">The ultimate platform for real-time team collaboration and communication.</p></div></div>
+        </div>
+    </div>
+
+    <div id="chat-app-view" class="view">
+        <div class="chat-app-wrapper">
+            <div class="sidebar-panel">
+                <div> <div class="sidebar-icon active">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    </div>
+                </div>
+                <div> <div class="sidebar-icon" id="logout-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="conversations-panel">
+                <div class="conversations-header"><h2 id="current-username"></h2>
+                    <div class="tabs"><button id="tab-friends" class="tab-button active" type="button">Friends</button><button id="tab-requests" class="tab-button" type="button">Requests</button></div>
+                    <form id="search-form" class="search-form"><div class="search-bar"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><input type="text" id="search-input" placeholder="Add friend by username..."></div><button type="submit">Add</button></form>
+                </div>
+                <div id="requests-view" class="friend-requests hidden"><div class="friend-requests-header">Incoming Requests</div><div id="friend-requests-list"></div></div>
+                <div id="friends-view">
+                    <div class="conversations-list-header">Friends</div>
+                    <div id="conversations-list" class="conversations-list"></div>
+                </div>
+            </div>
+            <div id="chat-panel" class="chat-panel">
+                 <div id="chat-placeholder" class="chat-placeholder"><h2>Select a friend to start chatting</h2><p>Your conversations will appear here.</p></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const API_URL = 'http://localhost:3000';
+            const WS_URL = 'ws://localhost:3000';
+            
+            let ws; let currentUserId; let activeChatFriendId = null;
+
+            // --- ELEMENT SELECTORS ---
+            const authView = document.getElementById('auth-view'); const chatAppView = document.getElementById('chat-app-view');
+            const loginView = document.getElementById('login-view'); const registerView = document.getElementById('register-view');
+            const loginForm = document.getElementById('login-form'); const registerForm = document.getElementById('register-form');
+            const showRegisterLink = document.getElementById('show-register-link'); const showLoginLink = document.getElementById('show-login-link');
+            const loginError = document.getElementById('login-error'); const registerError = document.getElementById('register-error');
+            const conversationsList = document.getElementById('conversations-list'); const chatPanel = document.getElementById('chat-panel');
+            const searchForm = document.getElementById('search-form'); const searchInput = document.getElementById('search-input');
+            const requestsView = document.getElementById('requests-view'); const friendRequestsList = document.getElementById('friend-requests-list');
+            const friendsView = document.getElementById('friends-view');
+            const tabFriends = document.getElementById('tab-friends'); const tabRequests = document.getElementById('tab-requests');
+            const currentUsernameEl = document.getElementById('current-username'); const logoutButton = document.getElementById('logout-button');
+
+            // --- ANIMATION & UI LOGIC ---
+            const animateEntrance = (view) => { anime.timeline({ easing: 'easeOutExpo' }).add({ targets: view.querySelectorAll('.anime-element'), translateY: [20, 0], opacity: [0, 1], duration: 600, delay: anime.stagger(80, {start: 200}) }); };
+            const switchView = (viewToShow, viewToHide) => { viewToHide.classList.remove('visible'); viewToShow.classList.add('visible'); anime.timeline({ easing: 'easeInOutExpo', complete: () => animateEntrance(viewToShow) }).add({ targets: viewToHide.querySelectorAll('.anime-element'), translateY: [0, -20], opacity: [1, 0], duration: 300, delay: anime.stagger(50) }).add({ targets: viewToHide, translateX: '-100%', opacity: 0, duration: 500, delay: 100 }, 0).add({ targets: viewToShow, translateX: ['100%', '0%'], opacity: [0, 1], duration: 500 }, 100); };
+            const transitionToChat = () => { anime.timeline({ easing: 'easeOutExpo' }).add({ targets: authView, scale: 0.95, opacity: 0, duration: 500, complete: () => { authView.classList.remove('active'); chatAppView.classList.add('active'); anime({ targets: chatAppView, scale: [0.95, 1], opacity: [0, 1], duration: 500 }); } }); };
+            const showError = (element, message) => { element.textContent = message; anime({ targets: element, opacity: [0, 1], translateY: [-10, 0], duration: 300, easing: 'easeOutExpo' }); };
+            const toggleLoading = (button, isLoading) => { button.disabled = isLoading; button.classList.toggle('loading', isLoading); };
+
+            // --- REAL-TIME & API LOGIC ---
+            const apiRequest = async (endpoint, method, body) => { const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` }; const options = { method, headers }; if (body) options.body = JSON.stringify(body); const response = await fetch(`${API_URL}${endpoint}`, options); if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.message || 'An error occurred'); } return response.status !== 204 ? response.json() : null; };
+            
+            const handleWebSocketMessage = (data) => {
+                if (data.type === 'friend_online' || data.type === 'friend_offline') {
+                    const friendId = data.user._id;
+                    const isOnline = data.type === 'friend_online';
+                    const listDot = document.querySelector(`.conversation-item[data-user-id="${friendId}"] .status-dot`);
+                    if (listDot) listDot.classList.toggle('online', isOnline);
+                    if (friendId === activeChatFriendId) {
+                        const headerDot = document.querySelector('.chat-header .status-dot');
+                        const headerText = document.querySelector('.chat-header .status-text');
+                        if (headerDot) headerDot.classList.toggle('online', isOnline);
+                        if (headerText) {
+                            headerText.classList.toggle('online', isOnline);
+                            headerText.textContent = isOnline ? 'Online' : 'Offline';
+                        }
+                    }
+                } else if (data.type === 'new_message') {
+                     if (data.message.sender._id === activeChatFriendId) appendMessage(data.message, 'received');
+                }
+            };
+            const connectWebSocket = (token) => { ws = new WebSocket(WS_URL); ws.onopen = () => { ws.send(JSON.stringify({ type: 'auth', token })); }; ws.onmessage = (event) => { handleWebSocketMessage(JSON.parse(event.data)); }; ws.onclose = () => {}; ws.onerror = (error) => { console.error('WebSocket error:', error); }; };
+
+            const updateRequestsBadge = (count) => {
+                if (!tabRequests) return;
+                tabRequests.textContent = count > 0 ? `Requests (${count})` : 'Requests';
+            };
+            const renderFriendRequests = (requests) => {
+                if (!friendRequestsList) return;
+                if (requests.length === 0) { friendRequestsList.innerHTML = '<div class="message-preview">No pending requests</div>'; updateRequestsBadge(0); return; }
+                friendRequestsList.innerHTML = requests.map(req => `
+                    <div class="friend-request-item" data-request-id="${req._id}">
+                        <span><strong>${req.from.username}</strong></span>
+                        <div class="request-buttons"><button class="accept-btn">Accept</button><button class="decline-btn">Decline</button></div>
+                    </div>`).join('');
+                updateRequestsBadge(requests.length);
+            };
+            
+            const renderFriends = (friendsList) => {
+                conversationsList.innerHTML = friendsList
+                    .sort((a, b) => Number(b.isOnline) - Number(a.isOnline))
+                    .map(friend => `
+                    <div class="conversation-item" data-user-id="${friend._id}" data-username="${friend.username}">
+                        <div class="avatar"><img src="${friend.avatar || `https://i.pravatar.cc/150?u=${friend.username}` }" alt="Avatar"><div class="status-dot ${friend.isOnline ? 'online' : ''}"></div></div>
+                        <div class="conversation-details"><div class="name">${friend.username}</div><div class="message-preview">Start a conversation...</div></div>
+                        <div class="conversation-meta"><span class="conversation-time"></span><span class="badge hidden">0</span></div>
+                    </div>`).join('');
+            };
+            
+            const formatTime = (iso) => {
+                try { const d = iso ? new Date(iso) : new Date(); return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
+            };
+            const formatDay = (iso) => {
+                const d = iso ? new Date(iso) : new Date();
+                return d.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+            };
+            const ensureDayDivider = (container, iso) => {
+                const day = formatDay(iso);
+                const lastDivider = container.querySelector('.day-divider:last-of-type');
+                if (!lastDivider || lastDivider.dataset.day !== day) {
+                    const div = document.createElement('div');
+                    div.className = 'day-divider';
+                    div.dataset.day = day;
+                    div.textContent = day;
+                    container.appendChild(div);
+                }
+            };
+            const appendMessage = (message, type) => {
+                const messageArea = document.getElementById('message-area'); if (!messageArea) return;
+                ensureDayDivider(messageArea, message.createdAt);
+                const row = document.createElement('div'); row.className = `message-row ${type}`;
+                const bubble = document.createElement('div'); bubble.className = `message-bubble ${type}`; bubble.textContent = message.text;
+                const time = document.createElement('div'); time.className = 'message-time'; time.textContent = formatTime(message.createdAt);
+                bubble.appendChild(time);
+                row.appendChild(bubble);
+                messageArea.appendChild(row); messageArea.scrollTop = messageArea.scrollHeight;
+            };
+
+            const renderChatPanel = async (friendId, friendUsername, isOnline) => {
+                activeChatFriendId = friendId;
+                chatPanel.innerHTML = `<div class="chat-header"><div class="left"><div class="avatar"><img src="https://i.pravatar.cc/150?u=${friendUsername}" alt="Avatar"><div class="status-dot ${isOnline ? 'online' : ''}"></div></div><div class="user-info"><div class="name">${friendUsername}</div><div class="status-text ${isOnline ? 'online' : ''}">${isOnline ? 'Online' : 'Offline'}</div></div></div><div class="actions"><button class="icon-button" title="Search"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></button><button class="icon-button" title="More"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg></button></div></div><div class="message-area" id="message-area"></div><div class="chat-input-area"><form class="chat-input-form" id="chat-input-form"><textarea id="chat-input" class="chat-input" placeholder="Type a message..." rows="1" required></textarea><button type="submit" class="send-button" title="Send"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button></form></div>`;
+                const messages = await apiRequest(`/api/conversations/${friendId}`, 'GET');
+                messages.forEach(msg => appendMessage(msg, msg.sender._id === currentUserId ? 'sent' : 'received'));
+                document.getElementById('message-area').scrollTop = document.getElementById('message-area').scrollHeight;
+                const textarea = document.getElementById('chat-input');
+                const autoResize = () => { textarea.style.height = 'auto'; textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px'; };
+                textarea.addEventListener('input', autoResize);
+                autoResize();
+                document.getElementById('chat-input-form').addEventListener('submit', (e) => { e.preventDefault(); const text = textarea.value.trim(); if (text && ws) { const messagePayload = { type: 'chat_message', recipientId: friendId, text: text }; ws.send(JSON.stringify(messagePayload)); appendMessage({ text: text, createdAt: new Date().toISOString() }, 'sent'); textarea.value = ''; autoResize(); } });
+                textarea.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('chat-input-form').dispatchEvent(new Event('submit')); } });
+            };
+            
+            const refreshDashboard = async () => { const requests = await apiRequest('/api/friend-requests', 'GET'); renderFriendRequests(requests); const friendsList = await apiRequest('/api/friends', 'GET'); renderFriends(friendsList); };
+            const handleLoginSuccess = async (data, username) => { localStorage.setItem('token', data.token); localStorage.setItem('username', username); currentUserId = data.userId; currentUsernameEl.textContent = username; transitionToChat(); connectWebSocket(data.token); await refreshDashboard(); };
+
+            // --- EVENT LISTENERS ---
+            showRegisterLink.addEventListener('click', (e) => { e.preventDefault(); loginError.style.opacity = 0; switchView(registerView, loginView); });
+            showLoginLink.addEventListener('click', (e) => { e.preventDefault(); registerError.style.opacity = 0; switchView(loginView, registerView); });
+            
+            registerForm.addEventListener('submit', async (e) => { e.preventDefault(); const button = e.target.querySelector('button'); toggleLoading(button, true); registerError.style.opacity = 0; const username = document.getElementById('register-username').value.trim().toLowerCase(); const password = document.getElementById('register-password').value; try { await apiRequest('/register', 'POST', { username, password }); alert('Registration successful! Please log in.'); registerForm.reset(); switchView(loginView, registerView); } catch (error) { showError(registerError, error.message); } finally { toggleLoading(button, false); } });
+            loginForm.addEventListener('submit', async (e) => { e.preventDefault(); const button = e.target.querySelector('button'); toggleLoading(button, true); loginError.style.opacity = 0; const username = document.getElementById('login-username').value.trim().toLowerCase(); const password = document.getElementById('login-password').value; try { const data = await apiRequest('/login', 'POST', { username, password }); await handleLoginSuccess(data, username); } catch (error) { showError(loginError, error.message); } finally { toggleLoading(button, false); } });
+
+            searchForm.addEventListener('submit', async (e) => { e.preventDefault(); const username = searchInput.value.trim().toLowerCase(); if (!username) return; try { const data = await apiRequest('/api/friend-requests/send', 'POST', { recipientUsername: username }); alert(data.message); searchInput.value = ''; } catch (error) { alert(`Error: ${error.message}`); } });
+            
+            friendRequestsList.addEventListener('click', async (e) => {
+                const target = e.target; const requestItem = target.closest('.friend-request-item'); if (!requestItem) return;
+                const requestId = requestItem.dataset.requestId; const response = target.classList.contains('accept-btn') ? 'accepted' : 'declined';
+                if (target.classList.contains('accept-btn') || target.classList.contains('decline-btn')) {
+                    try {
+                        await apiRequest('/api/friend-requests/respond', 'POST', { requestId, response });
+                        anime({ targets: requestItem, opacity: 0, height: 0, padding: '0px', margin: 0, duration: 300, easing: 'easeOutExpo', complete: () => requestItem.remove() });
+                        if(response === 'accepted') await refreshDashboard();
+                    } catch (error) { alert(`Error: ${error.message}`); }
+                }
+            });
+
+            // Tabs switching
+            const showFriends = () => { tabFriends.classList.add('active'); tabRequests.classList.remove('active'); friendsView.classList.remove('hidden'); requestsView.classList.add('hidden'); searchForm.classList.remove('hidden'); };
+            const showRequests = () => { tabRequests.classList.add('active'); tabFriends.classList.remove('active'); requestsView.classList.remove('hidden'); friendsView.classList.add('hidden'); searchForm.classList.add('hidden'); };
+            tabFriends.addEventListener('click', showFriends);
+            tabRequests.addEventListener('click', showRequests);
+            
+            conversationsList.addEventListener('click', (e) => {
+                const target = e.target.closest('.conversation-item');
+                if (target) {
+                    const friendId = target.dataset.userId; const friendUsername = target.dataset.username;
+                    const isOnline = target.querySelector('.status-dot').classList.contains('online');
+                    renderChatPanel(friendId, friendUsername, isOnline);
+                    document.querySelectorAll('.conversation-item').forEach(item => item.classList.remove('active'));
+                    target.classList.add('active');
+                }
+            });
+
+            logoutButton.addEventListener('click', () => {
+                localStorage.clear();
+                if (ws) ws.close();
+                window.location.reload();
+            });
+
+            // --- INITIALIZATION ---
+            registerView.classList.remove('visible'); animateEntrance(loginView);
+            const token = localStorage.getItem('token');
+            if (token) {
+                authView.classList.remove('active'); chatAppView.classList.add('active');
+                currentUsernameEl.textContent = localStorage.getItem('username');
+                try {
+                    currentUserId = JSON.parse(atob(token.split('.')[1])).userId;
+                    connectWebSocket(token);
+                    refreshDashboard();
+                } catch(e) { console.error("Could not parse token on initial load, logging out."); localStorage.clear(); }
+            }
+        });
+    </script>
+</body>
+</html>

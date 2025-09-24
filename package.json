@@ -1,15 +1,16 @@
 {
   "name": "social-chat-app",
   "version": "1.0.0",
-  "description": "",
+  "description": "A social chat app backend using Express and MongoDB",
   "main": "index.js",
+  "type": "commonjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "build": "echo \"No build step required\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",

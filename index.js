@@ -401,8 +401,8 @@ app.use((err, req, res, next) => {
     res.status(500).json({ message: 'Internal server error' });
 });
 
-// Handle 404s
-app.use('*', (req, res) => {
+// Handle 404s - Fix for path-to-regexp error
+app.use((req, res) => {
     res.status(404).json({ message: 'Route not found' });
 });
 
